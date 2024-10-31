@@ -6,6 +6,7 @@ COPY model.py .
 COPY symptom_classifier_model.joblib .
 COPY Symptom2Disease.csv .
 COPY requirements.txt .
+COPY frequency_dictionary_en_82_765.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 RUN python -m nltk.downloader stopwords
 RUN python -m nltk.downloader wordnet
