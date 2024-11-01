@@ -27,7 +27,16 @@ else:
     joblib.dump(classifier, MODEL_PATH)
 
 
-def correct_spelling(text):
+def correct_spelling(text: str) -> str:
+    """
+    Corrects spelling mistakes in the given text.
+
+    Args:
+        text (str): Input text to be corrected.
+
+    Returns:
+        str: Text with corrected spelling.
+    """
     corrected_text = []
     for word in text.split():
         suggestions = sym_spell.lookup(word, Verbosity.CLOSEST, max_edit_distance=2)
@@ -38,41 +47,104 @@ def correct_spelling(text):
     return ' '.join(corrected_text)
 
 
-def clean_text(text):
+def clean_text(text: str) -> str:
+    """
+    Cleans text by removing non-alphanumeric characters and extra spaces.
+
+    Args:
+        text (str): Text to be cleaned.
+
+    Returns:
+        str: Cleaned text.
+    """
     text = re.sub(r'[^a-zA-Z0-9.,?!\'\s]', '', text)
     return text.strip()
 
-def preprocess_text(input_text):
+def preprocess_text(input_text: str) -> str:
+    """
+    Preprocesses input text by cleaning and correcting spelling.
+
+    Args:
+        input_text (str): Input text for preprocessing.
+
+    Returns:
+        str: Preprocessed text.
+    """
     input_text = clean_text(input_text)
     input_text = correct_spelling(input_text)
     return input_text
 
 
-def contains_common_words(text):
+def contains_common_words(text: str) -> bool:
+    """
+    Checks if the text contains common English words.
+
+    Args:
+        text (str): Text to check for common words.
+
+    Returns:
+        bool: True if text contains common words, False otherwise.
+    """
     words = text.split()
     common_words = [word for word in words if word.lower() in stop_words]
     return len(common_words) > 0
 
 
-def is_text_informative(text):
+def is_text_informative(text: str) -> bool:
+    """
+    Checks if the text contains a sufficient number of words.
+
+    Args:
+        text (str): Text to check.
+
+    Returns:
+        bool: True if word count is greater than or equal to 5, False otherwise.
+    """
     word_count = len(text.split())
     return word_count >= 5
 
 
-def is_valid_sentence(text):
+def is_valid_sentence(text: str) -> bool:
+    """
+    Checks if the text contains an acceptable number of uncommon words.
+
+    Args:
+        text (str): Text to check.
+
+    Returns:
+        bool: True if less than 50% of words are uncommon, False otherwise.
+    """
     words = text.split()
     uncommon_words = [word for word in words if not sym_spell.lookup(word.lower(), Verbosity.CLOSEST, max_edit_distance=2)]
     return len(uncommon_words) < len(words) * 0.5
 
 
-def is_text_english(text):
+def is_text_english(text: str) -> bool:
+    """
+    Determines if the text is written in English.
+
+    Args:
+        text (str): Text to check for language.
+
+    Returns:
+        bool: True if the text is in English, False otherwise.
+    """
     try:
         return detect(text) == 'en'
     except LangDetectException:
         return False
 
 
-def is_meaningful_text(text):
+def is_meaningful_text(text: str) -> bool:
+    """
+    Checks if the text is informative and meaningful.
+
+    Args:
+        text (str): Text to evaluate.
+
+    Returns:
+        bool: True if text is informative, contains common words, and is valid; False otherwise.
+    """
     return (is_text_informative(text) and 
             contains_common_words(text) and 
             is_valid_sentence(text))
@@ -91,22 +163,47 @@ if st.button("Predict Diagnosis"):
             processed_input = preprocess_text(user_input)
             predictions = classifier.predict(processed_input, top_n=5)
 
+            def categorize_predictions(predictions: list) -> tuple:
+                """
+                Separates predictions into leading and possible diagnoses.
+
+                Args:
+                    predictions (list): List of predictions with probabilities.
+
+                Returns:
+                    tuple: Two lists - leading and possible diagnoses.
+                """
+                leading = predictions[:2] 
+                possible = predictions[2:]
+                return leading, possible
+
+            leading_diagnoses, possible_diagnoses = categorize_predictions(predictions)
+
             st.subheader("These diagnoses are just suppositional, please visit your doctor.")
-            st.subheader("Top-5 most likely diagnoses based on your input:")
-            for label, probability in predictions:
-                probability = probability.replace('%', '')
-                probability = float(probability)
-                st.write(f"{label}: {probability:.2f}%")
-            
-            if st.button("Reset Survey"):
-                csv_file_path = 'dags/user_inputs.csv'
-                file_exists = os.path.isfile(csv_file_path)
+
+            if leading_diagnoses:
+                st.subheader("Leading Diagnoses:")
+                for label, probability in leading_diagnoses:
+                    probability = probability.replace('%', '')
+                    probability = float(probability)
+                    st.write(f"{label}: {probability}%")
+
+            if possible_diagnoses:
+                st.subheader("Possible Diagnoses:")
+                for label, probability in possible_diagnoses:
+                    probability = probability.replace('%', '')
+                    probability = float(probability)
+                    st.write(f"{label}: {probability}%")
+
+            csv_file_path = 'dags/user_inputs.csv'
+            file_exists = os.path.isfile(csv_file_path)
                 
-                if user_input:
-                    with open(csv_file_path, mode='a', newline='') as file:
-                        writer = pd.DataFrame([[user_input]], columns=["User Input"])
-                        writer.to_csv(file, header=not file_exists, index=False)
-                    st.success("Your symptoms have been saved!")
+            with open(csv_file_path, mode='a', newline='') as file:
+                writer = pd.DataFrame([[user_input]], columns=["User Input"])
+                writer.to_csv(file, header=not file_exists, index=False)
+            st.success("Your symptoms have been saved!")
+            
+            if st.button("Reset"):
                 st.experimental_set_query_params()
     else:
         st.write("Please enter a description of your symptoms to get a prediction.")
