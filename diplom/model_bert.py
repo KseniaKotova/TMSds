@@ -24,12 +24,11 @@ class SymptomClassifier:
         self.label2int = {label: i for i, label in enumerate(self.data['label'].unique())}
         self.int2label = {i: label for label, i in self.label2int.items()}
         
-        self.data['label'] = self.data['label'].map(self.label2int)  # Преобразование меток в целые числа
+        self.data['label'] = self.data['label'].map(self.label2int)
         y = self.data['label'].values
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, stratify=y)
         
-        # Токенизация текста
         train_encodings = self.tokenizer(list(X_train), padding="max_length", truncation=True)
         test_encodings = self.tokenizer(list(X_test), padding="max_length", truncation=True)
 
@@ -52,6 +51,7 @@ class SymptomClassifier:
             metrics=['accuracy']
         )
 
+
     def train_model(self, train_dataset, val_dataset, epochs=3):
         self.model.fit(train_dataset, validation_data=val_dataset, epochs=epochs)
 
@@ -71,19 +71,19 @@ class SymptomClassifier:
         return top_results_normalized
 
 
-# classifier = SymptomClassifier('Symptom2Disease.csv')
-# classifier.load_data()
-# train_dataset, val_dataset = classifier.prepare_datasets()
-# classifier.build_model()
+classifier = SymptomClassifier('Symptom2Disease.csv')
+classifier.load_data()
+train_dataset, val_dataset = classifier.prepare_datasets()
+classifier.build_model()
 
-# #classifier.train_model(train_dataset, val_dataset, epochs=4)
-# classifier.model.save_weights('bert_model_weights.h5')
+classifier.train_model(train_dataset, val_dataset, epochs=4)
+classifier.model.save_weights('bert_model_weights.h5')
 
-# classifier.model.load_weights('bert_model_weights.h5')
+classifier.model.load_weights('bert_model_weights.h5')
 
-# symptom_input = "I have red spots and my skin is itching"
-# predictions = classifier.predict(symptom_input, top_n=5)
+symptom_input = "I have red spots and my skin is itching"
+predictions = classifier.predict(symptom_input, top_n=5)
 
-# print("Top-5:")
-# for label, probability in predictions:
-#     print(f"{label}: {probability}")
+print("Top-5:")
+for label, probability in predictions:
+    print(f"{label}: {probability}")
